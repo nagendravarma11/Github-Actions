@@ -1,0 +1,36 @@
+name: Node.js CI
+
+on:
+  push:
+
+jobs:
+  check-and-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start app and check response
+        run: |
+          npm start > server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..10}; do
+            if curl --fail --silent http://127.0.0.1:3000/; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat server.log
+          exit 1
